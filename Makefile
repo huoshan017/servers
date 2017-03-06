@@ -19,10 +19,15 @@ COMMON_DIR = $(PWD)/common
 COMMON_INCDIR = $(COMMON_DIR)
 COMMON_SRCDIR = $(COMMON_DIR)
 COMMON_OBJDIR = $(COMMON_DIR)/obj
-COMMON_SRCS = $(COMMON_SRCDIR)/HsNetHandler.cpp \
-			  $(COMMON_SRCDIR)/HsAgent.cpp
-COMMON_OBJS = $(COMMON_OBJDIR)/HsNetHandler.o \
-			  $(COMMON_OBJDIR)/HsAgent.o
+COMMON_SRCS = $(COMMON_SRCDIR)/HsNetServer.cpp \
+			  $(COMMON_SRCDIR)/HsAgent.cpp \
+			  $(COMMON_SRCDIR)/HsNetServerMgr.cpp \
+			  $(COMMON_SRCDIR)/HsMessageHandler.cpp
+
+COMMON_OBJS = $(COMMON_OBJDIR)/HsNetServer.o \
+			  $(COMMON_OBJDIR)/HsAgent.o \
+			  $(COMMON_OBJDIR)/HsNetServerMgr.o \
+			  $(COMMON_OBJDIR)/HsMessageHandler.o
 
 UTILS_DIR = $(PWD)/utils
 UTILS_INCDIR = $(UTILS_DIR)
@@ -41,9 +46,20 @@ LOGINSERVER_OBJDIR = $(LOGINSERVER_DIR)/obj
 
 LOGINSERVER_TARGET = $(LOGINSERVER_BIN_DIR)/loginserver
 LOGINSERVER_SRCS = $(LOGINSERVER_SRCDIR)/main.cpp \
-				   $(LOGINSERVER_SRCDIR)/loginserver.cpp
+				   $(LOGINSERVER_SRCDIR)/loginserver.cpp \
+					$(LOGINSERVER_SRCDIR)/clien_handles.cpp \
+					$(LOGINSERVER_SRCDIR)/configfile_loader.cpp
 LOGINSERVER_OBJS = $(LOGINSERVER_OBJDIR)/main.o \
-				   $(LOGINSERVER_OBJDIR)/loginserver.o
+				   $(LOGINSERVER_OBJDIR)/loginserver.o \
+					$(LOGINSERVER_OBJDIR)/client_handles.o \
+					$(LOGINSERVER_OBJDIR)/configfile_loader.o
+
+PBPROTO_DIR = $(PWD)/../hs_one/proto
+PBPROTO_INCDIR = $(PBPROTO_DIR)
+PBPROTO_SRCDIR = $(PBPROTO_DIR)
+PBPROTO_OBJDIR = $(PBPROTO_DIR)/obj
+PBPROTO_SRCS = $(PBPROTO_SRCDIR)/login.pb.cc
+PBPROTO_OBJS = $(PBPROTO_OBJDIR)/login.pb.o
 
 CCLDFLAGS = -pthread -lrt -lm -Wl,--no-as-needed -ldl
 
@@ -53,20 +69,24 @@ init:
 	mkdir -p $(LOGINSERVER_OBJDIR)
 	mkdir -p $(UTILS_OBJDIR)
 	mkdir -p $(COMMON_OBJDIR)
+	mkdir -p $(PBPROTO_OBJDIR)
 
 $(COMMON_OBJS): $(COMMON_OBJDIR)/%.o: $(COMMON_SRCDIR)/%.cpp
-	$(CC) -std=c++0x -c -fPIC -g $< -o $@ -I$(COMMON_INCDIR) -I$(HSNET_INCDIR)
+	$(CC) -std=c++0x -c -fPIC -g $< -o $@ -I$(COMMON_INCDIR) -I$(HSNET_INCDIR) -I$(UTILS_INCDIR) -I$(ZLOG_INCDIR)
 
 $(UTILS_OBJS): $(UTILS_OBJDIR)/%.o: $(UTILS_SRCDIR)/%.cpp
 	$(CC) -std=c++0x -c -fPIC -g $< -o $@ -I$(UTILS_INCDIR) -I $(ZLOG_INCDIR) -I $(THIRDPARTY_INCDIR)
 
-$(LOGINSERVER_OBJS): $(LOGINSERVER_OBJDIR)/%.o: $(LOGINSERVER_SRCDIR)/%.cpp
-	$(CC) -std=c++0x -c -fPIC -g $< -o $@ -I $(HSNET_INCDIR) -I $(HSDS_INCDIR) -I$(COMMON_INCDIR) -I $(UTILS_INCDIR) -I $(ZLOG_INCDIR) -I$(THIRDPARTY_INCDIR)
+$(PBPROTO_OBJS): $(PBPROTO_OBJDIR)/%.o: $(PBPROTO_SRCDIR)/%.cc
+	$(CC) -std=c++0x -c -fPIC -g $< -o $@ -I$(PBPROTO_INCDIR)
 
-$(LOGINSERVER_TARGET): $(LOGINSERVER_OBJS) $(COMMON_OBJS) $(UTILS_OBJS)
-	$(CC) -Wall -std=c++0x -o $(LOGINSERVER_TARGET) -g $(LOGINSERVER_OBJS) $(COMMON_OBJS) $(UTILS_OBJS) $(HSNET_LIBDIR)/hs_net.so $(HSDS_LIBDIR)/hs_ds.so $(ZLOG_LIBDIR)/libzlog.a $(CCLDFLAGS) 
+$(LOGINSERVER_OBJS): $(LOGINSERVER_OBJDIR)/%.o: $(LOGINSERVER_SRCDIR)/%.cpp
+	$(CC) -std=c++0x -c -fPIC -g $< -o $@ -I $(HSNET_INCDIR) -I $(HSDS_INCDIR) -I$(COMMON_INCDIR) -I $(UTILS_INCDIR) -I $(ZLOG_INCDIR) -I$(THIRDPARTY_INCDIR) -I$(PBPROTO_INCDIR)
+
+$(LOGINSERVER_TARGET): $(LOGINSERVER_OBJS) $(COMMON_OBJS) $(UTILS_OBJS) $(PBPROTO_OBJS)
+	$(CC) -Wall -std=c++0x -o $(LOGINSERVER_TARGET) -g $(LOGINSERVER_OBJS) $(COMMON_OBJS) $(UTILS_OBJS) $(PBPROTO_OBJS) $(HSNET_LIBDIR)/hs_net.so $(HSDS_LIBDIR)/hs_ds.so $(ZLOG_LIBDIR)/libzlog.a -lprotobuf $(CCLDFLAGS) 
 
 .PHONY: clean
 
 clean:
-	rm -fr $(LOGINSERVER_OBJS) $(LOGINSERVER_TARGET) $(COMMON_OBJS) $(UTILS_OBJS)
+	rm -fr $(LOGINSERVER_OBJS) $(LOGINSERVER_TARGET) $(COMMON_OBJS) $(UTILS_OBJS) $(PBPROTO_OBJS)

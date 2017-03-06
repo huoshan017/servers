@@ -4,7 +4,7 @@
 #include <string>
 using namespace std;
 
-class HsNetHandler;
+class HsNetServer;
 
 class LoginServer 
 {
@@ -21,17 +21,8 @@ private:
 	bool ReadConfig();
 
 private:
-	HsNetHandler* clients_handler_;
-	HsNetHandler* games_handler_;
-
-	struct Config {
-		string ip;
-		unsigned short port;
-		int max_agent_count;
-
-		Config() : port(0), max_agent_count(0) {
-		}
-	} config_;
+	HsNetServer* clients_handler_;
+	HsNetServer* games_handler_;
 };
 
 #endif

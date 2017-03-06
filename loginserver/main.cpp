@@ -13,5 +13,7 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 
+	delete ls;
+
 	return 0;
 }

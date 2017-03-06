@@ -1,19 +1,14 @@
-#ifndef __HS_NET_SERVER_H__
-#define __HS_NET_SERVER_H__
+#ifndef __HS_NET_SERVER_CPP_H__
+#define __HS_NET_SERVER_CPP_H__
 
 #include <unordered_map>
 using namespace std;
+#include "HsMessageHandler.h"
+#include "DataType.h"
 
 struct hs_net_agent;
 struct hs_net_server;
 class HsAgent;
-
-typedef int (*HsMsgHandle)(HsAgent*, char*, int);
-
-struct HsHandlePair {
-	int msg_id;
-	HsMsgHandle msg_handle;
-};
 
 class HsNetServer
 {
@@ -27,16 +22,14 @@ public:
 	void Destroy();
 	// 关闭
 	void Close();
-	// 载入处理函数
-	bool LoadHandles(struct HsHandlePair* pairs, int len);
+	// 载入配置
+	bool loadConfig(const HsNetServerConfig* config);
 	// 主循环
 	int Run();
-	// 获取消息ID
-	virtual int getMsgID(char*, int, int&);
-	// 处理函数
-	int Handle(HsAgent* , char* , int );
 
 protected:
+	// 载入处理函数
+	bool loadHandles(const HsHandlePair* pairs, int len);
 	bool AddAgent(hs_net_agent* agent);
 	bool RemoveAgent(int socket);
 	HsAgent* GetAgent(int socket);
@@ -45,8 +38,8 @@ protected:
 protected:
 	hs_net_server* hs_;
 	unordered_map<int, HsAgent*> agents_;
-	static unordered_map<int, HsNetServer*> servers_;
-	unordered_map<int, HsMsgHandle> handles_;
+	HsMessageHandler message_handler_;
+	friend class HsNetServerMgr;
 };
 
 #endif

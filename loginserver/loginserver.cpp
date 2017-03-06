@@ -1,12 +1,8 @@
 #include "loginserver.h"
 #include "hs_log.h"
-#include "rapidjson/document.h"
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/writer.h"
-#include <fstream>
-#include <iostream>
-#include <cassert>
-#include "HsNetHandler.h"
+#include "HsNetServer.h"
+#include "const.h"
+#include "configfile_loader.h"
 
 LoginServer::LoginServer() : clients_handler_(NULL), games_handler_(NULL)
 {
@@ -19,11 +15,8 @@ LoginServer::~LoginServer()
 
 bool LoginServer::Init()
 {
-	char* ip = NULL;
-	unsigned short port = 0;
-
 	if (!hs_log_init("log.conf", "my_cat")) {
-		cout << "Init log config failed" << endl;
+		HsLogError("Init log config failed");
 		return false;
 	}
 
@@ -32,9 +25,15 @@ bool LoginServer::Init()
 		return false;
 	}
 
-	clients_handler_ = new HsNetHandler();	
-	if (!clients_handler_->Create(config_.port, config_.max_agent_count)) {
+	//const char* ip = ConfigFileLoader::getInstance()->getIP();
+	unsigned short port = ConfigFileLoader::getInstance()->getPort();
+	int max_agent_count = ConfigFileLoader::getInstance()->getMaxAgentCount();
+	clients_handler_ = new HsNetServer;
+	if (!clients_handler_->Create(port, max_agent_count)) {
 		HsLogError("Create LoginServer Failed!\n");	
+		return false;
+	}
+	if (!clients_handler_->loadConfig(&s_clients_config)) {
 		return false;
 	}
 	return true;
@@ -58,7 +57,12 @@ int LoginServer::Run()
 	while (true) {
 		res = clients_handler_->Run();
 		if (res < 0) {
-			HsLogError("LoginServer Run Failed!\n");
+			HsLogError("clients_handler_ run failed");
+			break;
+		}
+		res = games_handler_->Run();
+		if (res < 0) {
+			HsLogError("games_handler_ run failed");
 			break;
 		}
 		usleep(1000);
@@ -68,49 +72,5 @@ int LoginServer::Run()
 
 bool LoginServer::ReadConfig()
 {
-	using std::ifstream;
-	// read json
-	fstream in("config.json");
-	if (!in.is_open()) {
-		HsLogError("config json can not open!\n");
-		return false;
-	}
-
-	char buf[256];
-	memset(buf, 0, sizeof(buf));
-	in.read(buf, sizeof(buf)-1);
-	using rapidjson::Document;
-	Document doc;
-	doc.Parse<0>(buf, (size_t)sizeof(buf)-1);
-	if (doc.HasParseError()) {
-		rapidjson::ParseErrorCode code = doc.GetParseError();
-		HsLogError("parse json file error(%d)\n", code);
-		return false;
-	}
-	in.close();
-
-	using rapidjson::Value;
-	// get value
-	Value& v = doc["ip"];
-	if (!v.IsString()) {
-		HsLogError("get ip failed\n");
-		return false;
-	}
-	config_.ip = v.GetString();
-
-	v = doc["port"];
-	if (!v.IsUint()) {
-		HsLogError("get port failed\n");
-		return false;
-	}
-	config_.port = (unsigned short)(v.GetUint());
-
-	v = doc["max_agent_count"];
-	if (!v.IsUint()) {
-		HsLogError("get max_agent_count failed!");
-		return false;
-	}
-	config_.max_agent_count = v.GetUint();
-	HsLogInfo("get ip(%s) port(%d) max_agent_count(%d)", config_.ip.c_str(), config_.port, config_.max_agent_count);
-	return true;
+	return ConfigFileLoader::getInstance()->load("config.json");
 }
